@@ -13,7 +13,8 @@ from torchvision import transforms
 from facenet_pytorch import MTCNN
 
 # —— CONFIGURATION —————————————————————————————————————————————
-MODEL_PATH = r"C:/Users/kunda/OneDrive/Desktop/New folder/ML_sem/emotion_vit_model.pt"
+# Use relative path or environment variable for model
+MODEL_PATH = os.environ.get('MODEL_PATH', 'emotion_vit_model.pt')
 EMOTIONS   = ["angry", "happy", "sad"]
 IMG_SIZE   = 224
 MEAN       = [0.485, 0.456, 0.406]
@@ -118,4 +119,5 @@ def predict_camera():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)  # <--- important to set host=0.0.0.0
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
