@@ -14,29 +14,43 @@ from facenet_pytorch import MTCNN
 
 # —— CONFIGURATION —————————————————————————————————————————————
 MODEL_PATH = "emotion_vit_model.pt"
-# Replace with your Google Drive file ID
-GDRIVE_FILE_ID = "https://drive.google.com/file/d/1hi_Q56qsuOk5Ke_OkvVKrgG8JlMwPexJ/view?usp=sharing"
+GDRIVE_FILE_ID = "1hi_Q56qsuOk5Ke_OkvVKrgG8JlMwPexJ"
 EMOTIONS   = ["angry", "happy", "sad"]
 IMG_SIZE   = 224
 MEAN       = [0.485, 0.456, 0.406]
 STD        = [0.229, 0.224, 0.225]
 # ————————————————————————————————————————————————————————————————
 
-# Download model from Google Drive if not exists
-def download_model():
-    if not os.path.exists(MODEL_PATH):
-        print("Model not found locally. Downloading from Google Drive...")
-        try:
-            import gdown
-            url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
-            gdown.download(url, MODEL_PATH, quiet=False)
-            print("Model downloaded successfully!")
-        except Exception as e:
-            print(f"Error downloading model: {e}")
-            raise
+# Download model from Google Drive using requests
+def download_model_from_gdrive(file_id, destination):
+    print(f"Downloading model from Google Drive...")
+    
+    # Direct download URL
+    url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+    
+    session = requests.Session()
+    response = session.get(url, stream=True)
+    
+    if response.status_code != 200:
+        raise Exception(f"Failed to download. Status code: {response.status_code}")
+    
+    # Save the file
+    total_size = 0
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(chunk_size=32768):
+            if chunk:
+                f.write(chunk)
+                total_size += len(chunk)
+                if total_size % (10 * 1024 * 1024) == 0:
+                    print(f"Downloaded {total_size / (1024*1024):.1f} MB...")
+    
+    print(f"Model downloaded successfully! Total size: {total_size / (1024*1024):.1f} MB")
 
-# Download model at startup
-download_model()
+# Download model if it doesn't exist
+if not os.path.exists(MODEL_PATH):
+    download_model_from_gdrive(GDRIVE_FILE_ID, MODEL_PATH)
+else:
+    print(f"Model already exists at {MODEL_PATH}")
 
 # Device & face detector
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
