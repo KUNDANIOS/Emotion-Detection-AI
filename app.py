@@ -37,13 +37,13 @@ def download_model_from_gdrive(file_id, destination):
             session = requests.Session()
             
             # First request might return a confirmation page for large files
-            response = session.get(url, stream=True, timeout=30)
+            response = session.get(url, stream=True, timeout=60)
             
             # Check for virus scan warning page
             for key, value in response.cookies.items():
                 if key.startswith('download_warning'):
                     url = url + f"&confirm={value}"
-                    response = session.get(url, stream=True, timeout=30)
+                    response = session.get(url, stream=True, timeout=60)
             
             if response.status_code == 200:
                 # Save the file
@@ -63,6 +63,7 @@ def download_model_from_gdrive(file_id, destination):
                 # Verify the file is not too small (should be ~344MB)
                 if file_size < 100 * 1024 * 1024:  # Less than 100MB
                     print(f"Warning: File seems too small ({file_size / (1024*1024):.1f} MB). Expected ~344 MB")
+                    os.remove(destination)
                     continue
                 
                 return
@@ -70,13 +71,19 @@ def download_model_from_gdrive(file_id, destination):
                 print(f"Failed with status code: {response.status_code}")
         except Exception as e:
             print(f"Error with this URL: {e}")
+            if os.path.exists(destination):
+                os.remove(destination)
             continue
     
     raise Exception("Failed to download model from all attempted URLs")
 
 # Download model if it doesn't exist
 if not os.path.exists(MODEL_PATH):
-    download_model_from_gdrive(GDRIVE_FILE_ID, MODEL_PATH)
+    try:
+        download_model_from_gdrive(GDRIVE_FILE_ID, MODEL_PATH)
+    except Exception as e:
+        print(f"ERROR: Could not download model: {e}")
+        print("Please ensure the model file is accessible or use environment variables")
 else:
     print(f"Model already exists at {MODEL_PATH}")
 
@@ -88,9 +95,13 @@ mtcnn  = MTCNN(keep_all=True, device=DEVICE, thresholds=[0.5, 0.6, 0.7], min_fac
 
 # Load model
 print("Loading emotion detection model...")
-model = torch.jit.load(MODEL_PATH, map_location=DEVICE)
-model.to(DEVICE).eval()
-print("Model loaded successfully!")
+try:
+    model = torch.jit.load(MODEL_PATH, map_location=DEVICE)
+    model.to(DEVICE).eval()
+    print("Model loaded successfully!")
+except Exception as e:
+    print(f"ERROR loading model: {e}")
+    model = None
 
 # Preprocessing
 preprocess = transforms.Compose([
@@ -100,6 +111,9 @@ preprocess = transforms.Compose([
 ])
 
 def process_pil(img: Image.Image):
+    if model is None:
+        raise RuntimeError("Model not loaded. Check server logs.")
+    
     boxes, probs = mtcnn.detect(img)
     results = []
 
@@ -133,6 +147,15 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     return render_template("index.html")
+
+@app.route('/health')
+def health():
+    """Health check endpoint for Render"""
+    return jsonify({
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "device": str(DEVICE)
+    }), 200
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
