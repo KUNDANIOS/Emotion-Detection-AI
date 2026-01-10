@@ -1,4 +1,4 @@
-gradio
+flask
 torch
 torchvision
 facenet-pytorch
