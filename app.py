@@ -13,21 +13,42 @@ from torchvision import transforms
 from facenet_pytorch import MTCNN
 
 # —— CONFIGURATION —————————————————————————————————————————————
-# Use relative path or environment variable for model
-MODEL_PATH = os.environ.get('MODEL_PATH', 'emotion_vit_model.pt')
+MODEL_PATH = "emotion_vit_model.pt"
+# Replace with your Google Drive file ID
+GDRIVE_FILE_ID = "https://drive.google.com/file/d/1hi_Q56qsuOk5Ke_OkvVKrgG8JlMwPexJ/view?usp=drive_link"
 EMOTIONS   = ["angry", "happy", "sad"]
 IMG_SIZE   = 224
 MEAN       = [0.485, 0.456, 0.406]
 STD        = [0.229, 0.224, 0.225]
 # ————————————————————————————————————————————————————————————————
 
+# Download model from Google Drive if not exists
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        print("Model not found locally. Downloading from Google Drive...")
+        try:
+            import gdown
+            url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
+            gdown.download(url, MODEL_PATH, quiet=False)
+            print("Model downloaded successfully!")
+        except Exception as e:
+            print(f"Error downloading model: {e}")
+            raise
+
+# Download model at startup
+download_model()
+
 # Device & face detector
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
+
 mtcnn  = MTCNN(keep_all=True, device=DEVICE, thresholds=[0.5, 0.6, 0.7], min_face_size=40)
 
 # Load model
+print("Loading emotion detection model...")
 model = torch.jit.load(MODEL_PATH, map_location=DEVICE)
 model.to(DEVICE).eval()
+print("Model loaded successfully!")
 
 # Preprocessing
 preprocess = transforms.Compose([
@@ -70,7 +91,6 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
