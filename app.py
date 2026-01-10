@@ -15,7 +15,7 @@ from facenet_pytorch import MTCNN
 # —— CONFIGURATION —————————————————————————————————————————————
 MODEL_PATH = "emotion_vit_model.pt"
 # Replace with your Google Drive file ID
-GDRIVE_FILE_ID = "https://drive.google.com/file/d/1hi_Q56qsuOk5Ke_OkvVKrgG8JlMwPexJ/view?usp=drive_link"
+GDRIVE_FILE_ID = "https://drive.google.com/file/d/1hi_Q56qsuOk5Ke_OkvVKrgG8JlMwPexJ/view?usp=sharing"
 EMOTIONS   = ["angry", "happy", "sad"]
 IMG_SIZE   = 224
 MEAN       = [0.485, 0.456, 0.406]
