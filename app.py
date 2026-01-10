@@ -21,30 +21,58 @@ MEAN       = [0.485, 0.456, 0.406]
 STD        = [0.229, 0.224, 0.225]
 # ————————————————————————————————————————————————————————————————
 
-# Download model from Google Drive using requests
+# Download model from Google Drive using requests with retry logic
 def download_model_from_gdrive(file_id, destination):
     print(f"Downloading model from Google Drive...")
     
-    # Direct download URL
-    url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+    # Try multiple URL formats
+    urls = [
+        f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t",
+        f"https://drive.google.com/uc?export=download&id={file_id}",
+    ]
     
-    session = requests.Session()
-    response = session.get(url, stream=True)
+    for url in urls:
+        try:
+            print(f"Trying URL: {url[:50]}...")
+            session = requests.Session()
+            
+            # First request might return a confirmation page for large files
+            response = session.get(url, stream=True, timeout=30)
+            
+            # Check for virus scan warning page
+            for key, value in response.cookies.items():
+                if key.startswith('download_warning'):
+                    url = url + f"&confirm={value}"
+                    response = session.get(url, stream=True, timeout=30)
+            
+            if response.status_code == 200:
+                # Save the file
+                total_size = 0
+                print("Starting download...")
+                with open(destination, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=1024*1024):  # 1MB chunks
+                        if chunk:
+                            f.write(chunk)
+                            total_size += len(chunk)
+                            if total_size % (50 * 1024 * 1024) == 0:  # Print every 50MB
+                                print(f"Downloaded {total_size / (1024*1024):.1f} MB...")
+                
+                file_size = os.path.getsize(destination)
+                print(f"Model downloaded successfully! Size: {file_size / (1024*1024):.1f} MB")
+                
+                # Verify the file is not too small (should be ~344MB)
+                if file_size < 100 * 1024 * 1024:  # Less than 100MB
+                    print(f"Warning: File seems too small ({file_size / (1024*1024):.1f} MB). Expected ~344 MB")
+                    continue
+                
+                return
+            else:
+                print(f"Failed with status code: {response.status_code}")
+        except Exception as e:
+            print(f"Error with this URL: {e}")
+            continue
     
-    if response.status_code != 200:
-        raise Exception(f"Failed to download. Status code: {response.status_code}")
-    
-    # Save the file
-    total_size = 0
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(chunk_size=32768):
-            if chunk:
-                f.write(chunk)
-                total_size += len(chunk)
-                if total_size % (10 * 1024 * 1024) == 0:
-                    print(f"Downloaded {total_size / (1024*1024):.1f} MB...")
-    
-    print(f"Model downloaded successfully! Total size: {total_size / (1024*1024):.1f} MB")
+    raise Exception("Failed to download model from all attempted URLs")
 
 # Download model if it doesn't exist
 if not os.path.exists(MODEL_PATH):
