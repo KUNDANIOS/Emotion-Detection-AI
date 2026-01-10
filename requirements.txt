@@ -1,4 +1,5 @@
 flask
 pillow
 opencv-python-headless
-torch==2.0.1
+torch==1.13.1
+requests
