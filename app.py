@@ -14,76 +14,59 @@ from facenet_pytorch import MTCNN
 
 # —— CONFIGURATION —————————————————————————————————————————————
 MODEL_PATH = "emotion_vit_model.pt"
-GDRIVE_FILE_ID = "1hi_Q56qsuOk5Ke_OkvVKrgG8JlMwPexJ"
+# Hugging Face model URL
+HF_MODEL_URL = "https://huggingface.co/Kundannn/emotion-vit-model/resolve/main/emotion_vit_model.pt"
 EMOTIONS   = ["angry", "happy", "sad"]
 IMG_SIZE   = 224
 MEAN       = [0.485, 0.456, 0.406]
 STD        = [0.229, 0.224, 0.225]
 # ————————————————————————————————————————————————————————————————
 
-# Download model from Google Drive using requests with retry logic
-def download_model_from_gdrive(file_id, destination):
-    print(f"Downloading model from Google Drive...")
+# Download model from Hugging Face
+def download_model_from_huggingface(url, destination):
+    print(f"Downloading model from Hugging Face...")
+    print(f"URL: {url}")
     
-    # Try multiple URL formats
-    urls = [
-        f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t",
-        f"https://drive.google.com/uc?export=download&id={file_id}",
-    ]
-    
-    for url in urls:
-        try:
-            print(f"Trying URL: {url[:50]}...")
-            session = requests.Session()
-            
-            # First request might return a confirmation page for large files
-            response = session.get(url, stream=True, timeout=60)
-            
-            # Check for virus scan warning page
-            for key, value in response.cookies.items():
-                if key.startswith('download_warning'):
-                    url = url + f"&confirm={value}"
-                    response = session.get(url, stream=True, timeout=60)
-            
-            if response.status_code == 200:
-                # Save the file
-                total_size = 0
-                print("Starting download...")
-                with open(destination, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=1024*1024):  # 1MB chunks
-                        if chunk:
-                            f.write(chunk)
-                            total_size += len(chunk)
-                            if total_size % (50 * 1024 * 1024) == 0:  # Print every 50MB
-                                print(f"Downloaded {total_size / (1024*1024):.1f} MB...")
-                
-                file_size = os.path.getsize(destination)
-                print(f"Model downloaded successfully! Size: {file_size / (1024*1024):.1f} MB")
-                
-                # Verify the file is not too small (should be ~344MB)
-                if file_size < 100 * 1024 * 1024:  # Less than 100MB
-                    print(f"Warning: File seems too small ({file_size / (1024*1024):.1f} MB). Expected ~344 MB")
-                    os.remove(destination)
-                    continue
-                
-                return
-            else:
-                print(f"Failed with status code: {response.status_code}")
-        except Exception as e:
-            print(f"Error with this URL: {e}")
-            if os.path.exists(destination):
-                os.remove(destination)
-            continue
-    
-    raise Exception("Failed to download model from all attempted URLs")
+    try:
+        response = requests.get(url, stream=True, timeout=300)
+        response.raise_for_status()
+        
+        total_size = int(response.headers.get('content-length', 0))
+        print(f"Total size: {total_size / (1024*1024):.1f} MB")
+        
+        downloaded = 0
+        with open(destination, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    # Print progress every 50MB
+                    if downloaded % (50 * 1024 * 1024) == 0:
+                        print(f"Downloaded {downloaded / (1024*1024):.1f} MB / {total_size / (1024*1024):.1f} MB")
+        
+        file_size = os.path.getsize(destination)
+        print(f"✓ Model downloaded successfully! Size: {file_size / (1024*1024):.1f} MB")
+        
+        # Verify file size
+        if file_size < 50 * 1024 * 1024:
+            raise Exception(f"Downloaded file too small ({file_size / (1024*1024):.1f} MB). Expected ~344 MB")
+        
+    except Exception as e:
+        print(f"ERROR downloading model: {e}")
+        if os.path.exists(destination):
+            os.remove(destination)
+        raise
 
 # Download model if it doesn't exist
+model = None
 if not os.path.exists(MODEL_PATH):
     try:
-        download_model_from_gdrive(GDRIVE_FILE_ID, MODEL_PATH)
+        print("Model file not found locally. Attempting to download...")
+        download_model_from_huggingface(HF_MODEL_URL, MODEL_PATH)
     except Exception as e:
         print(f"ERROR: Could not download model: {e}")
-        print("Please ensure the model file is accessible or use environment variables")
+        print("The app will start but emotion detection will not work.")
+        print("Please check the Hugging Face URL and try again.")
 else:
     print(f"Model already exists at {MODEL_PATH}")
 
