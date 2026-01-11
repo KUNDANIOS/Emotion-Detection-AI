@@ -76,15 +76,66 @@ print(f"Using device: {DEVICE}")
 
 mtcnn  = MTCNN(keep_all=True, device=DEVICE, thresholds=[0.5, 0.6, 0.7], min_face_size=40)
 
-# Load model
-print("Loading emotion detection model...")
+# Load model with timeout protection
+print("=" * 60)
+print("STARTING MODEL LOADING PROCESS")
+print("=" * 60)
+print(f"Looking for model at: {MODEL_PATH}")
+print(f"Model exists locally: {os.path.exists(MODEL_PATH)}")
+print(f"PyTorch version: {torch.__version__}")
+
+model = None
+
 try:
+    if not os.path.exists(MODEL_PATH):
+        print("Model file not found locally. Attempting to download...")
+        download_model_from_huggingface(HF_MODEL_URL, MODEL_PATH)
+    else:
+        print(f"Model already exists at {MODEL_PATH}")
+        file_size = os.path.getsize(MODEL_PATH) / (1024*1024)
+        print(f"Model file size: {file_size:.1f} MB")
+    
+    print("Loading emotion detection model (this may take 30-60 seconds)...")
+    import time
+    start_time = time.time()
+    
     model = torch.jit.load(MODEL_PATH, map_location=DEVICE)
     model.to(DEVICE).eval()
-    print("Model loaded successfully!")
-except Exception as e:
-    print(f"ERROR loading model: {e}")
+    
+    load_time = time.time() - start_time
+    print(f"✓ Model loaded successfully in {load_time:.1f} seconds!")
+    print("=" * 60)
+    
+except RuntimeError as e:
+    import traceback
+    print("=" * 60)
+    print("❌ PYTORCH RUNTIME ERROR:")
+    print(f"Error: {e}")
+    if "scaled_dot_product_attention" in str(e):
+        print("\n⚠️  MODEL INCOMPATIBILITY DETECTED!")
+        print(f"Current PyTorch version: {torch.__version__}")
+        print("Required: PyTorch 2.5+")
+    print("Full traceback:")
+    print(traceback.format_exc())
+    print("=" * 60)
     model = None
+    
+except Exception as e:
+    import traceback
+    print("=" * 60)
+    print("❌ ERROR LOADING MODEL:")
+    print(f"Error type: {type(e).__name__}")
+    print(f"Error: {e}")
+    print("Full traceback:")
+    print(traceback.format_exc())
+    print("=" * 60)
+    model = None
+
+if model is None:
+    print("\n⚠️  WARNING: Model not loaded. App will run but detection won't work.")
+    print("Check the errors above for details.")
+else:
+    print("\n✓ Model ready for inference!")
 
 # Preprocessing
 preprocess = transforms.Compose([
