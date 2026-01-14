@@ -1,16 +1,4 @@
-﻿---
-title: Emotion Detection AI
-emoji: 😊
-colorFrom: blue
-colorTo: purple
-sdk: gradio
-sdk_version: 4.44.0
-app_file: app.py
-pinned: false
-license: mit
----
-
-# 😊 Emotion Detection AI
+ 😊 Emotion Detection AI
 
 An advanced emotion detection system powered by deep learning that analyzes facial expressions in real-time.
 
@@ -131,4 +119,5 @@ static/
 ```
 
 ---
+
 
