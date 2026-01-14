@@ -96,28 +96,9 @@ env/
 *.pth
 *.onnx
 emotion_vit_model.pt
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Gradio
-gradio_cached_examples/
-flagged/
-
-# Old Flask files (if you want to keep them locally)
-app_flask.py
-templates/
-static/
 ```
 
 ---
+
 
 
