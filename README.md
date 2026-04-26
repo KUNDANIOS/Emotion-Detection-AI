@@ -18,7 +18,7 @@ An advanced emotion detection system powered by deep learning that analyzes faci
 4. **Detect**: Click "Detect Emotion" button
 5. **View Results**: See detected emotion with confidence scores
 
-## 🤖 Model Details
+## 🤖 Model Details    
 
 - **Architecture**: Vision Transformer (ViT)
 - **Face Detection**: MTCNN
